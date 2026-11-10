@@ -1,0 +1,18 @@
+# Ingesta y Red
+httpx>=0.27.0
+beautifulsoup4>=4.12.0
+lxml>=5.2.0
+
+# Parsing Documental a Markdown
+pymupdf4llm>=0.0.17
+pymupdf>=1.24.0
+
+# Modelado de Datos y Configuración
+pydantic>=2.7.0
+python-dotenv>=1.0.1
+
+# Interfaz CLI y Logging
+rich>=13.7.1
+
+# Testing y Calidad
+pytest>=8.2.0

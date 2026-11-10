@@ -1,0 +1,27 @@
+cat << 'EOF' > .gitignore
+# Byte-compiled / Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Conda / venvs locales
+.venv/
+env/
+
+# Datos (los PDFs pesados nunca se suben a Git)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# macOS & VS Code
+.DS_Store
+.vscode/
+.idea/
+
+# Variables de entorno y secretos
+.env
+
+# Bitácora personal de estudio (descomentar si deseas mantenerla estrictamente local)
+# bitacora/
+EOF
