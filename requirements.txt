@@ -3,9 +3,9 @@ httpx>=0.27.0
 beautifulsoup4>=4.12.0
 lxml>=5.2.0
 
-# Parsing Documental a Markdown
-pymupdf4llm>=0.0.17
-pymupdf>=1.24.0
+# Parsing Documental a Markdown (Pin a versión estable 0.0.17)
+pymupdf4llm==0.0.17
+pymupdf>=1.24.0,<2.0.0
 
 # Modelado de Datos y Configuración
 pydantic>=2.7.0

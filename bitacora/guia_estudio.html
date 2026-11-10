@@ -851,6 +851,96 @@ src/
       </table>
     </section>
 
+    <!-- MÓDULO 8: GIT Y COMMITS CONVENCIONALES -->
+    <section class="module-card">
+      <div class="module-title">
+        <span class="step-number">8</span>
+        <h2>Flujo de Trabajo en Git y Commits Convencionales</h2>
+      </div>
+
+      <p>
+        En Git, los cambios no van directamente del editor al historial. Pasan por tres zonas claramente diferenciadas:
+      </p>
+
+      <div class="tree-box" style="color: #f8fafc;">
+Working Directory (Disco local)
+       │
+       │  <span class="cmd">git add .</span>   <span class="comment">(Coloca los cambios en el Staging Area)</span>
+       ▼
+Staging Area / Index (La "mesa de embalaje")
+       │
+       │  <span class="cmd">git commit -m "..."</span>   <span class="comment">(Genera un snapshot criptográfico inmutable)</span>
+       ▼
+Git Repository (Historial del proyecto)
+      </div>
+
+      <h3 class="section-heading">El Estándar: Conventional Commits</h3>
+      <p>
+        Para mantener un historial limpio y legible por humanos y pipelines de CI/CD, se utiliza el estándar:
+        <code>&lt;tipo&gt;(&lt;alcance&gt;): &lt;descripción&gt;</code>.
+      </p>
+      <table class="anatomy-table">
+        <thead>
+          <tr>
+            <th>Prefijo</th>
+            <th>Uso y Significado</th>
+            <th>Ejemplo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>chore</code></td>
+            <td>Tareas de mantenimiento, dependencias o configuración inicial sin tocar lógica de negocio.</td>
+            <td><code>chore(setup): initialize project architecture</code></td>
+          </tr>
+          <tr>
+            <td><code>feat</code></td>
+            <td>Nueva funcionalidad o característica.</td>
+            <td><code>feat(connectors): add BCCh SIID downloader</code></td>
+          </tr>
+          <tr>
+            <td><code>fix</code></td>
+            <td>Corrección de un error o bug.</td>
+            <td><code>fix(parser): handle multi-column tables</code></td>
+          </tr>
+          <tr>
+            <td><code>docs</code></td>
+            <td>Modificaciones exclusivas a la documentación o bitácora.</td>
+            <td><code>docs(bitacora): add git workflow notes</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- MÓDULO 9: DEBUGGING DE DEPENDENCIAS -->
+    <section class="module-card">
+      <div class="module-title">
+        <span class="step-number">9</span>
+        <h2>Debugging de Dependencias: El caso de los paquetes "Dummy / Stub" en PyPI</h2>
+      </div>
+
+      <p>
+        Durante el Smoke Test ocurrió un error sumamente instructivo:
+        <br><code style="color: #f43f5e;">ModuleNotFoundError: No module named 'pymupdf4llm'</code>
+      </p>
+
+      <div class="concept-callout">
+        <h4>¿Por qué falló si `pip` dijo "Successfully installed"?</h4>
+        <p>
+          Si observamos el log de <code>pip install</code>, descargó un archivo llamado:
+          <br><code>pymupdf4llm-2.0-py3-none-any.whl (904 bytes)</code>.
+          <br>Un paquete de 904 bytes es un <strong>paquete vacío (Stub/Dummy)</strong>. Recientemente, los creadores de PyMuPDF decidieron fusionar la librería <code>pymupdf4llm</code> dentro de <code>pymupdf 2.0</code>, dejando la versión 2.0 en PyPI solo como un cascarón vacío de transición.
+          <br>Sin embargo, en macOS el instalador descargó <code>pymupdf 1.28.2</code> (que aún no incluye ese código internamente).
+        </p>
+      </div>
+
+      <h3 class="section-heading">La Solución de Ingeniería: Fijar versión estable (`==`)</h3>
+      <p>
+        En lugar de usar un rango abierto <code>>=0.0.17</code> (que permitió a pip saltar a la versión 2.0 vacía), se fija explícitamente la última versión funcional independiente:
+        <br><code>pymupdf4llm==0.0.17</code> y <code>pymupdf&gt;=1.24.0,&lt;2.0.0</code>.
+      </p>
+    </section>
+
     <footer>
       <p>Bitácora de Estudio &bull; Ingeniería de Software y Datos &bull; Actualizada continuamente en cada paso.</p>
     </footer>
