@@ -7,7 +7,7 @@ class BaseConnector(ABC):
     """
     Clase base abstracta para la descarga y trazabilidad de normativa
     Todas las instituciones heredaran de esta clase
-    y deberán implementar los métodos abstractos definidos en ella
+    y estaran obligadas a cimplementar estos metodos
     """
     def __init__(self, name:str, base_url:str) -> None:
         self.name = name
@@ -39,7 +39,7 @@ class BaseConnector(ABC):
 
         with open(file_path, "rb") as f:
             while True:
-                chunk = f.read(8192)  # Leer en bloques de 8 KB
+                chunk = f.read(8192)  #lee en bloques de 8 KB
                 if not chunk:
                     break
                 sha256_hash.update(chunk)

@@ -1,8 +1,5 @@
 """
-Conector generalizado e institucional para la ingesta de normativa financiera chilena.
-Diseñado para operar de forma agnóstica con múltiples entidades reguladoras
-(Banco Central de Chile, Superintendencia de Pensiones, Comisión para el Mercado Financiero, etc.),
-asegurando streaming en bloques de memoria, integridad SHA-256 y resolución dinámica sin sesgos.
+Conector institucional para la ingesta de normativa
 """
 
 from datetime import datetime, timezone
@@ -19,11 +16,11 @@ from src.connectors.base import BaseConnector
 
 class NormaConnector(BaseConnector):
     """
-    Conector genérico para la descarga, verificación e inspección
-    de normativa institucional y financiera.
+    Conector para la descarga, verificación e inspección
+    de normativa
     """
 
-    # Registro de dominios institucionales chilenos para resolución automática
+    #registro de dominios institucionales chilenos tipos
     DOMINIOS_INSTITUCIONALES: Dict[str, tuple[str, str]] = {
         "bcentral.cl": ("Banco Central de Chile", "BCCh"),
         "siid.cl": ("Banco Central de Chile", "BCCh"),
@@ -44,7 +41,7 @@ class NormaConnector(BaseConnector):
     ) -> None:
         dominio_raiz = "/".join(document_url.split("/")[:3])
 
-        # Auto-resolución institucional basada en el dominio de la URL si no se especificó
+        #autoresolucion institucional basada en el dominio de la URL
         inst_auto, sigla_auto = None, None
         url_lower = document_url.lower()
         for dominio, (nombre_inst, sigla) in self.DOMINIOS_INSTITUCIONALES.items():
@@ -67,8 +64,7 @@ class NormaConnector(BaseConnector):
 
     def download(self, output_dir: Path) -> Path:
         """
-        Descarga el documento por streaming en bloques de 8 KB, calcula su hash SHA-256,
-        auto-detecta metadatos del PDF si no fueron dados y genera el manifest.json.
+        Descarga el documento por streaming en bloques de 8 KB
         """
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -78,7 +74,7 @@ class NormaConnector(BaseConnector):
         filename = segmentos_pdf[0] if segmentos_pdf else "norma.pdf"
         target_path = output_dir / filename
 
-        # 1. Descarga por streaming HTTP (8 KB por bloque)
+        #descarga por streaming HTTP (8 KB chunk)
         with httpx.Client(follow_redirects=True, timeout=30.0) as client:
             with client.stream("GET", self.document_url) as response:
                 response.raise_for_status()
@@ -86,13 +82,13 @@ class NormaConnector(BaseConnector):
                     for chunk in response.iter_bytes(chunk_size=8192):
                         f.write(chunk)
 
-        # 2. Cálculo criptográfico SHA-256
+        #calculo hash
         file_hash = self.calculate_sha256(target_path)
 
-        # 3. Auto-inspección de metadatos desde el PDF para campos no especificados
+        #inscpeccion metadatos pdf
         self._auto_detect_metadata(target_path)
 
-        # 4. Generación del Manifiesto de Trazabilidad
+        #manifiesto de trazabilidad
         manifest_data = {
             "institucion": self.institucion,
             "documento": filename,
@@ -109,6 +105,7 @@ class NormaConnector(BaseConnector):
 
         return target_path
 
+    #autodeteccion de metadatos a partir del contenido del pdf
     def _auto_detect_metadata(self, pdf_path: Path) -> None:
         """
         Lee la primera página del PDF mediante PyMuPDF para extraer compendio,
@@ -118,21 +115,21 @@ class NormaConnector(BaseConnector):
             doc = pymupdf.open(pdf_path)
             texto_p1 = doc[0].get_text()
 
-            # 1. Inferencia del Compendio a partir de encabezados oficiales
+            #inferencia de encabezados
             if not self.compendio:
                 if "normas financieras" in texto_p1.lower():
                     self.compendio = "Compendio de Normas Financieras (CNF)"
                 elif "normas de pensiones" in texto_p1.lower():
                     self.compendio = "Compendio de Normas del Sistema de Pensiones (SP)"
 
-            # 2. Búsqueda del Capítulo (ej: CAPÍTULO III.D.3)
+            #busca capitulo
             match_cap = re.search(r"(CAPÍTULO\s+[A-Z0-9\.]+)", texto_p1, re.IGNORECASE)
             if match_cap and not self.capitulo:
                 self.capitulo = match_cap.group(1).strip()
 
             lineas = [l.strip() for l in texto_p1.split("\n") if l.strip()]
 
-            # 3. Búsqueda del Título formal descartando folios repetitivos de página
+            #busca titulo
             if not self.titulo:
                 for idx, linea in enumerate(lineas):
                     if re.match(r"^CAP[ÍI]TULO\s+[A-Z0-9\.]+$", linea, re.IGNORECASE):
