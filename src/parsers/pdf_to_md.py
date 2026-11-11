@@ -1,7 +1,7 @@
 """
-Motor de conversión y estructuración de normativa financiera PDF a Markdown semántico.
-Utiliza pymupdf4llm para preservar jerarquías (#, ##, ###) y tablas financieras,
-inyecta YAML Frontmatter para Obsidian y RAG, y genera enlaces bidireccionales ([[...]]).
+Parser para convertir normativas PDF a Markdown estructurado
+Preserva tablas y jerarquia de encabezados con pymupdf4llm,
+agrega frontmatter YAML y genera wikilinks para Obsidian
 """
 
 import json
@@ -15,8 +15,7 @@ import pymupdf4llm
 
 class NormaPDFParser:
     """
-    Parser especializado para transformar normativas financieras en formato PDF
-    a Markdown estructurado de alta fidelidad con metadatos y grafos de conocimiento.
+    Convierte normativa en PDF a Markdown limpio con metadatos y enlaces
     """
 
     def __init__(
@@ -32,7 +31,7 @@ class NormaPDFParser:
             self.vault_dir.mkdir(parents=True, exist_ok=True)
 
     def _load_manifest(self, pdf_path: Path) -> Dict[str, Any]:
-        """Carga el manifest.json generado durante la descarga si existe."""
+        """Carga manifest.json si existe en la carpeta del PDF"""
         manifest_path = pdf_path.parent / "manifest.json"
         if manifest_path.exists():
             try:
@@ -49,9 +48,7 @@ class NormaPDFParser:
         tamano_bytes: Optional[int] = None,
         fecha_ingesta: Optional[str] = None,
     ) -> str:
-        """
-        Construye el encabezado YAML Frontmatter para Obsidian y RAG Metadata Filtering.
-        """
+        """Arma bloque YAML de propiedades para Obsidian y RAG"""
         frontmatter_lines = [
             "---",
             f"institucion: \"{metadata.get('institucion', 'No especificado')}\"",
@@ -77,17 +74,15 @@ class NormaPDFParser:
         return "\n".join(frontmatter_lines)
 
     def _enrich_wikilinks(self, markdown_text: str) -> str:
-        """
-        Detecta menciones a normas legales y las envuelve en Wikilinks de Obsidian ([[...]]).
-        """
-        # 1. Enlazar Capítulos oficiales con numeración romana/decimal (ej: Capítulo III.D.3)
+        """Convierte citas legales a formato wikilink [[...]]"""
+        # enlaza capitulos oficiales con numeracion romana o decimal
         texto = re.sub(
             r"\b(Cap[íi]tulo\s+([IVXLCDM0-9]+(?:\.[A-Za-z0-9]+)*))\b",
             r"[[\2|\1]]",
             markdown_text,
         )
 
-        # 2. Enlazar referencias a Leyes oficiales (ej: Ley N° 18.045)
+        # enlaza menciones a leyes chilenas
         texto = re.sub(
             r"\b(Ley\s+N[°º]?\s*([0-9\.]+))\b",
             r"[[Ley_\2|\1]]",
@@ -98,12 +93,12 @@ class NormaPDFParser:
         return texto
 
     def _generate_canonical_name(self, metadata: Dict[str, Any], fallback: str) -> str:
-        """Genera un nombre de archivo estándar, limpio y sin tildes en formato .md."""
+        """Genera nombre de archivo estandar sin tildes ni caracteres raros"""
         sigla = metadata.get("sigla_institucion", "NORMA").upper()
         capitulo = metadata.get("capitulo", "")
 
         if capitulo and capitulo != "No especificado":
-            # Normaliza y elimina acentos (ej: Capítulo -> Capitulo)
+            # quita tildes para evitar problemas en sistemas de archivos
             cap_sin_tildes = "".join(
                 c for c in unicodedata.normalize("NFKD", capitulo)
                 if not unicodedata.combining(c)
@@ -114,42 +109,38 @@ class NormaPDFParser:
         return f"{sigla}_{Path(fallback).stem}.md"
 
     def parse(self, pdf_path: Path) -> Path:
-        """
-        Orquesta la conversión del PDF a Markdown estructurado con Frontmatter y Wikilinks.
-        """
+        """Procesa el PDF y genera el archivo Markdown final"""
         if not pdf_path.exists():
-            raise FileNotFoundError(f"No se encontró el archivo PDF en: {pdf_path}")
+            raise FileNotFoundError(f"No se encontro el archivo PDF en: {pdf_path}")
 
-        # 1. Cargar metadatos del manifiesto
+        # recupera metadatos del manifiesto
         manifest = self._load_manifest(pdf_path)
         meta_norma = manifest.get("metadatos", {})
         sha256 = manifest.get("sha256")
         tamano = manifest.get("tamaño_bytes")
         fecha = manifest.get("descargado_en_utc")
 
-        # 2. Extracción de Markdown de alta fidelidad con PyMuPDF4LLM
+        # extraccion a markdown respetando tablas y negritas
         markdown_crudo = pymupdf4llm.to_markdown(str(pdf_path))
 
-        # 3. Inyección de YAML Frontmatter
+        # agrega metadatos y enlaces
         frontmatter = self._build_frontmatter(
             metadata=meta_norma,
             sha256=sha256,
             tamano_bytes=tamano,
             fecha_ingesta=fecha,
         )
-
-        # 4. Enriquecimiento con Wikilinks
         markdown_enriquecido = self._enrich_wikilinks(markdown_crudo)
         contenido_final = f"{frontmatter}\n{markdown_enriquecido}"
 
-        # 5. Determinación del nombre de archivo y guardado
+        # guarda archivo procesado
         filename_md = self._generate_canonical_name(meta_norma, pdf_path.name)
         target_path = self.output_dir / filename_md
 
         with open(target_path, "w", encoding="utf-8") as f:
             f.write(contenido_final)
 
-        # 6. Duplicar en el Vault de Obsidian si está configurado
+        # copia en el vault de obsidian si esta activo
         if self.vault_dir:
             vault_target = self.vault_dir / filename_md
             with open(vault_target, "w", encoding="utf-8") as f:

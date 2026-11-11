@@ -18,6 +18,9 @@ data/processed/*
 .vscode/
 .idea/
 
+# Obsidian local workspace configuration (plugins, window layout, themes)
+**/.obsidian/
+
 # Variables de entorno y secretos
 .env
 
