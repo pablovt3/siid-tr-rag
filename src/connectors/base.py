@@ -5,11 +5,10 @@ import hashlib
 
 class BaseConnector(ABC):
     """
-    Clase base abstracta para la descarga y trazabilidad de normativa
-    Todas las instituciones heredaran de esta clase
-    y estaran obligadas a cimplementar estos metodos
+    Clase base abstracta para la descarga y trazabilidad de normativa.
+    Todas las instituciones heredan de esta clase e implementan sus metodos.
     """
-    def __init__(self, name:str, base_url:str) -> None:
+    def __init__(self, name: str, base_url: str) -> None:
         self.name = name
         self.base_url = base_url
 

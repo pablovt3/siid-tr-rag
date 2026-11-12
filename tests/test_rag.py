@@ -57,7 +57,7 @@ def main():
         resultado = qa_engine.query(q, top_k=2)
 
         print(f"🎯 Documentos recuperados: {resultado['total_recuperados']}")
-        print(f"⚖️  Puntajes RRF: {resultado['scores_rrf']}")
+        print(f"⚖  Puntajes RRF: {resultado['scores_rrf']}")
         print("📜 Citas normativas identificadas:")
         for cita in resultado["citas_normativas"]:
             print(f"   -> {cita}")

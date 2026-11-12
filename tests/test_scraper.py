@@ -7,7 +7,7 @@ from src.connectors.scraper import SIIDScraper
 
 def main():
     print("=" * 70)
-    print("🕷️  INICIANDO RASTREO MULTINIVEL EN SIID.CL")
+    print("🕷  INICIANDO RASTREO MULTINIVEL EN SIID.CL")
     print("   1. Normativa Oficial: https://www.siid.cl/normativa-n")
     print("   2. Metodologías y Estudios: https://www.siid.cl/estadisticas/metodologias-y-estudios")
     print("=" * 70)
