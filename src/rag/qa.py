@@ -20,29 +20,30 @@ class NormaQAEngine:
         self.retriever = retriever
 
     def build_prompt(self, query: str, chunks: List[NormaChunk]) -> str:
-        """construye el prompt aumentado con instrucciones de no alucinacion"""
+        """construye el prompt aumentado con instrucciones de no alucinacion y estricto espanol"""
         contexto_partes = []
         for i, chunk in enumerate(chunks, 1):
             contexto_partes.append(f"[FUENTE {i}]\n{chunk.to_context_string()}")
 
         contexto_completo = "\n".join(contexto_partes)
 
-        prompt = f"""Eres un analista experto en regulacion financiera y normativa del Banco Central de Chile.
-Tu tarea es responder la consulta del usuario basandote UNICA Y EXCLUSIVAMENTE en los fragmentos normativos proporcionados a continuacion.
+        prompt = f"""Eres un analista cuantitativo y regulatorio experto en la normativa del Banco Central de Chile y el mercado de derivados financieros (SIID).
+Tu tarea es responder la consulta del usuario basándote ÚNICA Y EXCLUSIVAMENTE en los fragmentos oficiales proporcionados.
 
-Reglas estrictas:
-- No inventes informacion ni agregues suposiciones que no esten en el texto.
-- Cita siempre el capitulo, titulo y seccion de donde extrajiste cada afirmacion.
-- Si la respuesta no se encuentra en las fuentes, responde: "La normativa provista no contiene informacion suficiente para responder esta consulta."
+Reglas estrictas de respuesta:
+1. IDIOMA OBLIGATORIO: Responde SIEMPRE en ESPAÑOL. No generes ningún texto, nota, lista de verificación ni razonamiento en inglés.
+2. RIGOR Y CERO ALUCINACIÓN: No inventes información ni agregues supuestos fuera del texto oficial.
+3. CITAS OBLIGATORIAS: Cita siempre el capítulo, anexo, título o sección correspondiente de cada fragmento utilizado.
+4. AUSENCIA DE INFORMACIÓN: Si la respuesta a la pregunta no está explícitamente en los fragmentos provistos, responde textualmente: "La normativa provista no contiene información suficiente para responder esta consulta."
 
-=== FRAGMENTOS OFICIALES DISPONIBLES ===
+=== FRAGMENTOS NORMATIVOS OFICIALES ===
 {contexto_completo}
-=======================================
+======================================
 
 CONSULTA DEL USUARIO:
 {query}
 
-RESPUESTA FUNDAMENTADA (incluye citas normativas):"""
+RESPUESTA PROFESIONAL EN ESPAÑOL:"""
         return prompt
 
     def query(self, user_query: str, top_k: int = 3) -> Dict[str, Any]:
@@ -54,10 +55,11 @@ RESPUESTA FUNDAMENTADA (incluye citas normativas):"""
 
         prompt_generado = self.build_prompt(user_query, chunks_recuperados)
 
-        # extrae citas normativas unicas
+        # extrae citas normativas o tecnicas unicas
         citas = []
         for ch in chunks_recuperados:
-            cita = f"{ch.sigla_institucion} | {ch.capitulo} | {ch.jerarquia}"
+            origen = ch.capitulo if ch.capitulo not in ("No especificado", "Capitulo_General", "") else ch.titulo_norma
+            cita = f"{ch.sigla_institucion} | {origen} | {ch.jerarquia}"
             if cita not in citas:
                 citas.append(cita)
 

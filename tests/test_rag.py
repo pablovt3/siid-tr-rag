@@ -11,25 +11,26 @@ from src.rag.qa import NormaQAEngine
 
 
 def main():
-    md_path = Path("data/processed/BCCH_Capitulo_III_D_3.md")
-    if not md_path.exists():
-        print(f"❌ Error: No existe {md_path}. Ejecuta primero el parser.")
+    archivos_md = sorted(Path("data/processed").glob("*.md"))
+    if not archivos_md:
+        print(f"❌ Error: No se encontraron archivos en data/processed. Ejecuta primero el pipeline.")
         return
 
     print("=" * 70)
-    print("🚀 1. INICIANDO CHUNKING JERÁRQUICO NORMATIVO")
+    print("🚀 1. INICIANDO CHUNKING JERÁRQUICO MULTI-DOCUMENTO")
     print("=" * 70)
 
     chunker = NormaHierarchicalChunker(max_tokens_por_chunk=600)
-    chunks = chunker.chunk_document(md_path)
+    chunks = chunker.chunk_directory(Path("data/processed"))
 
-    print(f"✅ Chunks totales generados: {len(chunks)}")
+    print(f"✅ Documentos Markdown procesados: {len(archivos_md)}")
+    print(f"✅ Chunks totales generados en el corpus: {len(chunks)}")
     tablas = [c for c in chunks if c.tipo.value == "tabla"]
-    print(f"📊 Tablas regulatorias preservadas como chunks únicos: {len(tablas)}")
+    print(f"📊 Tablas y gráficos estructurados preservados: {len(tablas)}")
     total_tokens = sum(c.tokens_estimados for c in chunks)
-    print(f"📝 Tokens totales estimados: {total_tokens:,}")
+    print(f"📝 Tokens totales estimados en el corpus: {total_tokens:,}")
 
-    print("\nEjemplo de los primeros 3 chunks generados:")
+    print("\nEjemplo de 3 chunks generados:")
     for c in chunks[:3]:
         print(f"   [{c.chunk_id}] ({c.tipo.value.upper()}) {c.jerarquia} | Tokens: {c.tokens_estimados}")
 
@@ -39,12 +40,13 @@ def main():
 
     retriever = HybridNormaRetriever(chunks)
     qa_engine = NormaQAEngine(retriever)
-    print(f"✅ Índice construido para {retriever.corpus_size} documentos.")
+    print(f"✅ Índice construido para {retriever.corpus_size} fragmentos.")
 
     consultas_prueba = [
         "¿Qué es un Repositorio de Transacciones TR y qué objetivos persigue según el BCCh?",
-        "¿Cuáles son las entidades obligadas y la matriz de contrapartes para derivados?",
-        "¿Qué leyes rigen a las empresas bancarias y qué acceso tiene la CMF?"
+        "¿Cuáles son las tres estadísticas de derivados sobre tipos de cambio descritas en la nota técnica 7?",
+        "¿Cuáles son las diferencias entre single-sided y double-sided reporting según Alexander Hynes?",
+        "¿Cuáles son los campos requeridos en el Anexo 2.A para derivados sobre monedas?"
     ]
 
     for num, q in enumerate(consultas_prueba, 1):

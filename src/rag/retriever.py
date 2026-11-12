@@ -8,15 +8,23 @@ from collections import Counter
 import math
 from pathlib import Path
 import re
-from typing import List, Tuple
+from typing import List, Set, Tuple
+import unicodedata
 
 from src.rag.models import NormaChunk
 
 
 class HybridNormaRetriever:
     """
-    Indice y buscador hibrido (BM25 + similitud vectorial de cosenos)
+    Indice y buscador hibrido (BM25 + similitud vectorial de cosenos con fusion RRF)
     """
+
+    STOPWORDS: Set[str] = {
+        "de", "la", "el", "en", "y", "a", "los", "las", "del", "por", "un", "una",
+        "unos", "unas", "que", "qué", "sobre", "con", "su", "sus", "para", "se",
+        "al", "lo", "como", "es", "son", "o", "u", "e", "este", "esta", "estos",
+        "estas", "segun", "cual", "cuales"
+    }
 
     def __init__(self, chunks: List[NormaChunk], k1: float = 1.5, b: float = 0.75) -> None:
         self.chunks = chunks
@@ -34,20 +42,31 @@ class HybridNormaRetriever:
         self._build_index()
 
     def _tokenize(self, text: str) -> List[str]:
-        """tokeniza y limpia texto en minusculas"""
-        palabras = re.findall(r"\b[A-Za-z0-9_áéíóúÁÉÍÓÚñÑ\.\-]+\b", text.lower())
-        # descarta palabras de un caracter irrelevantes salvo numeros
-        return [p for p in palabras if len(p) > 1 or p.isdigit()]
+        """
+        tokeniza, normaliza diacriticos (tildes) para busqueda tolerante
+        y descarta stopwords comunes en espanol
+        """
+        # remueve diacriticos para unificar terminos (ej: tecnicos == técnicos, modificacion == modificación)
+        text_norm = "".join(
+            c for c in unicodedata.normalize("NFKD", text.lower())
+            if not unicodedata.combining(c)
+        )
+        palabras = re.findall(r"\b[a-z0-9_\.\-]+\b", text_norm)
+        return [
+            p for p in palabras
+            if (len(p) > 1 or p.isdigit()) and p not in self.STOPWORDS
+        ]
 
     def _build_index(self) -> None:
-        """construye las tablas de frecuencias e idf para BM25"""
+        """construye las tablas de frecuencias e idf para BM25 indexando metadatos y contenido"""
         if not self.chunks:
             return
 
         total_len = 0
         for chunk in self.chunks:
-            # combina jerarquia y contenido para mejor contexto de busqueda
-            texto_completo = f"{chunk.jerarquia} {chunk.contenido}"
+            # indexa institucion, capitulo, titulo descriptivo, jerarquia y contenido sustantivo
+            meta_header = f"{chunk.sigla_institucion} {chunk.capitulo} {chunk.titulo_norma} {chunk.jerarquia}"
+            texto_completo = f"{meta_header} {chunk.contenido}"
             tokens = self._tokenize(texto_completo)
             longitud = len(tokens)
             self.doc_lengths.append(longitud)
@@ -70,6 +89,7 @@ class HybridNormaRetriever:
         score = 0.0
         doc_len = self.doc_lengths[doc_idx]
         tf = self.term_freqs[doc_idx]
+        chunk = self.chunks[doc_idx]
 
         for token in query_tokens:
             if token not in tf:
@@ -80,12 +100,18 @@ class HybridNormaRetriever:
             denominador = f + self.k1 * (1.0 - self.b + self.b * (doc_len / self.avg_doc_len))
             score += idf * (numerador / denominador)
 
+        # atenuacion para indices de contenido y paginacion cuando la consulta busca sustancia tecnica
+        if chunk.metadatos_adicionales and chunk.metadatos_adicionales.get("es_indice_navegacional"):
+            if not any(w in query_tokens for w in ("indice", "contenido", "agenda", "estructura")):
+                score *= 0.35
+
         return score
 
     def _score_cosine(self, query_tokens: List[str], doc_idx: int) -> float:
         """calcula similitud de cosenos sobre frecuencias ponderadas"""
         q_counter = Counter(query_tokens)
         d_counter = self.term_freqs[doc_idx]
+        chunk = self.chunks[doc_idx]
 
         dot_product = sum(q_counter[t] * d_counter.get(t, 0) * self.idf.get(t, 1.0) for t in q_counter)
         norm_q = math.sqrt(sum((count * self.idf.get(t, 1.0)) ** 2 for t, count in q_counter.items()))
@@ -93,7 +119,13 @@ class HybridNormaRetriever:
 
         if norm_q == 0.0 or norm_d == 0.0:
             return 0.0
-        return dot_product / (norm_q * norm_d)
+
+        sim = dot_product / (norm_q * norm_d)
+        if chunk.metadatos_adicionales and chunk.metadatos_adicionales.get("es_indice_navegacional"):
+            if not any(w in query_tokens for w in ("indice", "contenido", "agenda", "estructura")):
+                sim *= 0.35
+
+        return sim
 
     def search(self, query: str, top_k: int = 3) -> List[Tuple[NormaChunk, float]]:
         """

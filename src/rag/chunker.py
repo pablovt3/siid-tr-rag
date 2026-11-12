@@ -84,6 +84,10 @@ class NormaHierarchicalChunker:
         buffer_numeral = "General"
         chunk_idx = 1
 
+        # identificador base del archivo para evitar colisiones
+        stem_limpio = re.sub(r"[^A-Za-z0-9]", "_", markdown_path.stem)
+        stem_limpio = re.sub(r"_+", "_", stem_limpio).strip("_")
+
         def flush_buffer():
             nonlocal buffer_texto, chunk_idx
             if not buffer_texto:
@@ -92,15 +96,48 @@ class NormaHierarchicalChunker:
             if not texto_unido:
                 return
 
-            jerarquia_str = f"{titulo_actual} > {seccion_actual}"
-            cid = f"{sigla}_{re.sub(r'[^A-Za-z0-9]', '', capitulo)}_{chunk_idx:03d}"
+            es_tabla = ("|" in texto_unido and "---" in texto_unido)
+            es_grafico = ("Valores/Escala de gráfico" in texto_unido or "📊" in texto_unido)
 
-            # identifica si es tabla o numeral
+            # descarta fragmentos que consisten unicamente en encabezados sin cuerpo sustantivo
+            lineas_validas = [l.strip() for l in texto_unido.split("\n") if l.strip()]
+            if all(l.startswith(("#", "TÍTULO")) for l in lineas_validas) and not es_tabla and not es_grafico:
+                buffer_texto = []
+                return
+
+            palabras = texto_unido.split()
+            primer_linea = lineas_validas[0] if lineas_validas else ""
+            primeras_palabras = [w.lower().strip(",.:;-_") for w in palabras[:6]]
+
+            # purga estricta de residuos de celdas rotas (lineas que arrancan con 'si', 'no', tipos de datos o minusculas)
+            es_desborde_celda = (
+                any(p in ("sí", "si", "no", "char", "varchar", "num", "date", "datetime") for p in primeras_palabras)
+                or (primer_linea and primer_linea[0].islower() and not primer_linea.startswith(("-", "*", ">")))
+            )
+            if es_desborde_celda and not es_tabla and not es_grafico:
+                buffer_texto = []
+                return
+
+            tiene_encabezado_formal = any(primer_linea.startswith(pfx) for pfx in ("#", "TÍTULO", "MAT.:", "Bancos N°", "Artículo", "Circular", "ANT.:", "Santiago,"))
+            tiene_numeral_formal = bool(re.match(r"^(\d+\.|\b[ivxlcdm]+\.|\bArtículo\s+\d+[°º]?)\s+", primer_linea))
+
+            if not es_tabla and not es_grafico:
+                if len(palabras) < 35 and not tiene_encabezado_formal and not tiene_numeral_formal:
+                    buffer_texto = []
+                    return
+
+            jerarquia_str = f"{titulo_actual} > {seccion_actual}"
+            cid = f"{stem_limpio[:28]}_{chunk_idx:03d}"
+
+            # identifica si es tabla, grafico o numeral
             tipo = TipoFragmento.NUMERAL
-            if "|" in texto_unido and "---" in texto_unido:
+            if ("|" in texto_unido and "---" in texto_unido) or "Valores/Escala de gráfico" in texto_unido:
                 tipo = TipoFragmento.TABLA
             elif texto_unido.startswith("Artículo") or "Artículo" in buffer_numeral:
                 tipo = TipoFragmento.ARTICULO
+
+            # detecta si el bloque es un indice navegacional con numeros de pagina (... 12)
+            es_indice_nav = len(re.findall(r"\.{4,}\s*\d+", texto_unido)) >= 3 or "......." in texto_unido
 
             chunk = NormaChunk(
                 chunk_id=cid,
@@ -114,7 +151,10 @@ class NormaHierarchicalChunker:
                 tokens_estimados=NormaChunk.estimar_tokens(texto_unido),
                 sha256_origen=sha256,
                 url_origen=url_origen,
-                metadatos_adicionales={"numeral_detectado": buffer_numeral}
+                metadatos_adicionales={
+                    "numeral_detectado": buffer_numeral,
+                    "es_indice_navegacional": es_indice_nav
+                }
             )
             chunks.append(chunk)
             chunk_idx += 1
@@ -125,29 +165,64 @@ class NormaHierarchicalChunker:
             if not b_strip:
                 continue
 
-            # detecta cambios de titulo principal (ej: TÍTULO I)
+            # separador de laminas de diapositivas
+            if b_strip == "---":
+                flush_buffer()
+                continue
+
+            # encabezados markdown principales (# Titulo)
+            if b_strip.startswith("# ") and len(b_strip) < 120:
+                flush_buffer()
+                titulo_actual = b_strip.lstrip("# ").strip()
+                seccion_actual = "General"
+                buffer_numeral = "Título Markdown"
+                buffer_texto.append(b_strip)
+                continue
+
+            # subencabezados markdown (## Seccion o ### Subseccion)
+            if (b_strip.startswith("## ") or b_strip.startswith("### ")) and len(b_strip) < 120:
+                if buffer_texto and all(l.strip().startswith(("#", "TÍTULO")) for l in buffer_texto):
+                    seccion_actual = b_strip.lstrip("# ").strip()
+                    buffer_texto.append(b_strip)
+                else:
+                    flush_buffer()
+                    seccion_actual = b_strip.lstrip("# ").strip()
+                    buffer_numeral = "Sección Markdown"
+                    buffer_texto.append(b_strip)
+                continue
+
+            # detecta cambios de titulo legal (ej: TÍTULO I)
             match_tit = re.match(r"^\*?\*?(TÍTULO\s+[IVXLCDM0-9]+)\*?\*?", b_strip, re.IGNORECASE)
             if match_tit:
                 flush_buffer()
                 titulo_actual = match_tit.group(1).upper()
+                seccion_actual = "General"
                 buffer_numeral = "Inicio Título"
                 buffer_texto.append(b_strip)
-                flush_buffer()
                 continue
 
             # detecta secciones tematicas (ej: A. Antecedentes Generales, B. Definiciones)
             match_sec = re.match(r"^\*?\*?([A-Z]\.\s+[^.\n]+)\*?\*?", b_strip)
             if match_sec and len(b_strip.split("\n")[0]) < 80:
-                flush_buffer()
-                seccion_actual = match_sec.group(1).strip("* ")
-                buffer_numeral = "Encabezado Sección"
-                buffer_texto.append(b_strip)
-                flush_buffer()
+                if buffer_texto and all(l.strip().startswith(("#", "TÍTULO")) for l in buffer_texto):
+                    seccion_actual = match_sec.group(1).strip("* ")
+                    buffer_texto.append(b_strip)
+                else:
+                    flush_buffer()
+                    seccion_actual = match_sec.group(1).strip("* ")
+                    buffer_numeral = "Encabezado Sección"
+                    buffer_texto.append(b_strip)
                 continue
 
-            # detecta tablas completas (preserva la tabla entera en un chunk unico)
+            # detecta tablas completas (preserva la tabla unida a su encabezado si lo habia)
             if "|" in b_strip and "---" in b_strip:
-                flush_buffer()
+                if buffer_texto and not all(l.strip().startswith(("#", "TÍTULO")) for l in buffer_texto):
+                    texto_previo = [l for l in buffer_texto if not l.strip().startswith(("#", "TÍTULO"))]
+                    encabezados = [l for l in buffer_texto if l.strip().startswith(("#", "TÍTULO"))]
+                    buffer_texto = texto_previo
+                    flush_buffer()
+                    buffer_texto = encabezados
+
                 buffer_texto.append(b_strip)
                 buffer_numeral = "Tabla"
                 flush_buffer()
@@ -170,3 +245,15 @@ class NormaHierarchicalChunker:
 
         flush_buffer()
         return chunks
+
+    def chunk_directory(self, processed_dir: Path = Path("data/processed")) -> List[NormaChunk]:
+        """procesa todos los archivos markdown de una carpeta y une los chunks"""
+        todos_los_chunks: List[NormaChunk] = []
+        archivos_md = sorted(processed_dir.glob("*.md"))
+        for f in archivos_md:
+            try:
+                chunks_doc = self.chunk_document(f)
+                todos_los_chunks.extend(chunks_doc)
+            except Exception as e:
+                print(f"Error procesando {f.name}: {e}")
+        return todos_los_chunks

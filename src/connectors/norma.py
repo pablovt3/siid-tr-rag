@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 from typing import Any, Dict, Optional
+from urllib.parse import unquote
 
 import httpx
 import pymupdf
@@ -37,6 +38,7 @@ class NormaConnector(BaseConnector):
         capitulo: Optional[str] = None,
         titulo: Optional[str] = None,
         mercado: Optional[str] = None,
+        categoria: str = "norma",
         base_url: Optional[str] = None,
     ) -> None:
         dominio_raiz = "/".join(document_url.split("/")[:3])
@@ -56,6 +58,7 @@ class NormaConnector(BaseConnector):
         self.capitulo = capitulo
         self.titulo = titulo
         self.mercado = mercado
+        self.categoria = categoria
 
         super().__init__(
             name=self.sigla_institucion.lower(),
@@ -68,13 +71,14 @@ class NormaConnector(BaseConnector):
         """
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Sanitización de la URL: aísla el nombre terminado en .pdf ignorando query params (?version=...)
+        # limpia y decodifica el nombre del archivo terminado en .pdf
         url_limpia = self.document_url.split("?")[0]
         segmentos_pdf = [s for s in url_limpia.split("/") if s.lower().endswith(".pdf")]
-        filename = segmentos_pdf[0] if segmentos_pdf else "norma.pdf"
+        nombre_crudo = unquote(segmentos_pdf[0]) if segmentos_pdf else "norma.pdf"
+        filename = re.sub(r'[\/\\:\*\?"<>\|]', '_', nombre_crudo)
         target_path = output_dir / filename
 
-        #descarga por streaming HTTP (8 KB chunk)
+        # descarga por streaming HTTP (8 KB chunk)
         with httpx.Client(follow_redirects=True, timeout=30.0) as client:
             with client.stream("GET", self.document_url) as response:
                 response.raise_for_status()
@@ -82,13 +86,13 @@ class NormaConnector(BaseConnector):
                     for chunk in response.iter_bytes(chunk_size=8192):
                         f.write(chunk)
 
-        #calculo hash
+        # calculo hash
         file_hash = self.calculate_sha256(target_path)
 
-        #inscpeccion metadatos pdf
+        # inspeccion metadatos pdf
         self._auto_detect_metadata(target_path)
 
-        #manifiesto de trazabilidad
+        # manifiesto individual y actualizacion del registro global
         manifest_data = {
             "institucion": self.institucion,
             "documento": filename,
@@ -99,9 +103,23 @@ class NormaConnector(BaseConnector):
             "metadatos": self.get_metadata(),
         }
 
-        manifest_path = output_dir / "manifest.json"
-        with open(manifest_path, "w", encoding="utf-8") as f:
+        # guarda manifiesto especifico para este documento
+        manifest_item_path = output_dir / f"{target_path.stem}.manifest.json"
+        with open(manifest_item_path, "w", encoding="utf-8") as f:
             json.dump(manifest_data, f, indent=2, ensure_ascii=False)
+
+        # actualiza o crea el manifiesto consolidado
+        manifest_path = output_dir / "manifest.json"
+        registro_global = {}
+        if manifest_path.exists():
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    registro_global = json.load(f)
+            except Exception:
+                pass
+        registro_global[filename] = manifest_data
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(registro_global, f, indent=2, ensure_ascii=False)
 
         return target_path
 
@@ -157,5 +175,6 @@ class NormaConnector(BaseConnector):
             "capitulo": self.capitulo or "No especificado",
             "titulo": self.titulo or "No especificado",
             "mercado": self.mercado or "No especificado",
+            "categoria": self.categoria,
             "url_origen": self.document_url,
         }

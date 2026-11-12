@@ -1,13 +1,13 @@
 ---
 institucion: "Banco Central de Chile"
 sigla: "BCCh"
+categoria: "norma"
+titulo: "SISTEMA INTEGRADO DE INFORMACIÓN SOBRE TRANSACCIONES DE DERIVADOS (SIID)"
 compendio: "Compendio de Normas Financieras (CNF)"
 capitulo: "Capítulo III.D.3"
-titulo: "SISTEMA INTEGRADO DE INFORMACIÓN SOBRE TRANSACCIONES DE DERIVADOS (SIID)"
-mercado: "No especificado"
 sha256: "df06eb5d58e085e7adffe36e1a4de4231024e14ff612ea4ae6eacfaca1eeab62"
 tamano_bytes: 253647
-fecha_ingesta: "2026-11-11T04:57:14.069797+00:00"
+fecha_ingesta: "2026-11-12T00:30:45.397239+00:00"
 url_origen: "https://www.siid.cl/documents/2446522/0/CNF.pdf/b4a79fc5-8ca7-935c-efa7-e3737903d4df?version=1.0&t=1776722039063"
 ---
 
@@ -76,8 +76,7 @@ macroeconómicas nacionales en esta materia.
 
 Circular N° 3013-980 – 02.01.2026 - Acuerdo N° 2617-04-240125
 
-
------
+---
 
 Normas Financieras
 [[III.D.3|Capítulo III.D.3]] – Hoja 2
@@ -137,8 +136,7 @@ III.B.2.2, III.B.5, III.D.1 y III.D.2 del Compendio de Normas Financieras del BC
 
 Circular N° 3013-980 – 02.01.2026 - Acuerdo N° 2617-04-240125
 
-
------
+---
 
 Normas Financieras
 [[III.D.3|Capítulo III.D.3]] – Hoja 3
@@ -198,8 +196,7 @@ Fiscalizadas CMF”)
 
 Circular N° 3013-980 – 02.01.2026 - Acuerdo N° 2617-04-240125
 
-
------
+---
 
 Normas Financieras
 [[III.D.3|Capítulo III.D.3]] – Hoja 4
@@ -279,8 +276,7 @@ Circular N° 3013-980 – 02.01.2026 - Acuerdo N° 2617-04-240125
 |iii. Otras Entidades<br>fiscalizadas CMF|✓|✓|✓|✓|✓|
 |iv. Otros Residentes<br>en Chile2|||||✓|
 
-
------
+---
 
 Normas Financieras
 [[III.D.3|Capítulo III.D.3]] – Hoja 5
@@ -349,8 +345,7 @@ el RO-SIID.
 
 Circular N° 3013-980 – 02.01.2026 - Acuerdo N° 2617-04-240125
 
-
------
+---
 
 Normas Financieras
 [[III.D.3|Capítulo III.D.3]] – Hoja 6
@@ -393,8 +388,7 @@ requerimientos y estandarización de la información.
 
 Circular N° 3013-980 – 02.01.2026 - Acuerdo N° 2617-04-240125
 
-
------
+---
 
 Normas Financieras
 [[III.D.3|Capítulo III.D.3]] – Hoja 7
@@ -429,8 +423,7 @@ internacionales.
 
 Circular N° 3013-980 – 02.01.2026 - Acuerdo N° 2617-04-240125
 
-
------
+---
 
 Normas Financieras
 [[III.D.3|Capítulo III.D.3]] – Hoja 8
@@ -468,8 +461,7 @@ fiscalización de la CMF.
 
 Circular N° 3013-980 – 02.01.2026 - Acuerdo N° 2617-04-240125
 
-
------
+---
 
 Normas Financieras
 [[III.D.3|Capítulo III.D.3]] – Hoja 9
@@ -497,6 +489,5 @@ disponibles en el Portal Web.
 
 Circular N° 3013-980 – 02.01.2026 - Acuerdo N° 2617-04-240125
 
-
------
+---
 
