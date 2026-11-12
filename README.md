@@ -1,6 +1,6 @@
-# NORMA SIID: Inteligencia Normativa y RAG
+# SIID-TR RAG: Motor de Consulta sobre la Normativa del SIID
 
-Motor de búsqueda híbrida y extracción regulatoria especializado en la normativa del **Sistema Integrado de Información sobre Transacciones de Derivados (SIID)**.
+Motor de búsqueda híbrida y extracción regulatoria especializado en la normativa del **Sistema Integrado de Información sobre Transacciones de Derivados (SIID-TR)**.
 
 El sistema procesa compendios regulatorios, cartas circulares y estudios metodológicos, ofreciendo dos modalidades de consulta en terminal: auditoría directa de fuentes oficiales con nulo consumo de tokens o síntesis generativa fundamentada con consumo de tokens.
 
@@ -77,8 +77,8 @@ El repositorio procesa 10 fuentes documentales organizadas en dos categorías (e
 
 ### 1. Clonar el repositorio y preparar el entorno
 ```bash
-git clone https://github.com/pablovaldes/NORMA_SIID.git
-cd NORMA_SIID
+git clone https://github.com/pablovt3/siid-tr-rag.git
+cd siid-tr-rag
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -136,7 +136,7 @@ python tests/test_rag.py
 ## Estructura del Repositorio
 
 ```
-NORMA_SIID/
+siid-tr-rag/
 ├── data/
 │   ├── raw/                   # PDFs originales descargados y manifiestos JSON
 │   ├── processed/             # Markdown estructurado con Frontmatter YAML

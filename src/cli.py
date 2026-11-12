@@ -145,7 +145,7 @@ def mostrar_banner():
     """muestra cabecera estilizada de la aplicacion"""
     console.print()
     banner_text = (
-        "[bold cyan]NORMA SIID[/bold cyan] - [bold white]Inteligencia Normativa y RAG Financiero[/bold white]\n"
+        "[bold cyan]SIID-TR RAG[/bold cyan] - [bold white]Motor de Consulta sobre la Normativa del SIID[/bold white]\n"
         "[dim]Banco Central de Chile & Regulación de Derivados OTC[/dim]\n"
         "[dim]Motor Híbrido: BM25 + Coseno + Reciprocal Rank Fusion (RRF)[/dim]"
     )
